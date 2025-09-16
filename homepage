@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Tourism Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: linear-gradient(to bottom right, #e2e8f0, #f6f7fb);
+            color: #1a202c;
+        }
+        .container-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 72px; /* Space for the bottom nav */
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        .carousel-item {
+            transition: transform 0.3s ease-in-out;
+        }
+        .pulse {
+            animation: pulse-animation 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-animation {
+            0%, 100% {
+                transform: scale(0.95);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+        /* Custom modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        .toast {
+            position: fixed;
+            bottom: 88px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 40;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        /* Style for the chart canvas in spending tracker */
+        #spending-chart-canvas {
+            width: 100% !important;
+            height: 250px !important;
+        }
+        /* Side drawer styles */
+        .drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 80%;
+            max-width: 300px;
+            height: 100%;
+            background-color: white;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 60;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            padding: 1rem;
+        }
+        .drawer.open {
+            transform: translateX(0);
+        }
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 55;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0s 0.3s;
+        }
+        .drawer-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Side Navigation Drawer -->
+    <div id="side-drawer" class="drawer">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-teal-600">Smart Tourism Hub</h2>
+            <button id="close-drawer" class="text-gray-500 hover:text-gray-800">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <nav class="space-y-4">
+            <a href="#" class="drawer-link flex items-center p-3 rounded-lg hover:bg-gray-100" data-page="home">
+                <i class="fas fa-home w-6 text-center text-teal-600"></i>
+                <span class="ml-3 font-medium">Home</span>
+            </a>
+            <a href="#" class="drawer-link flex items-center p-3 rounded-lg hover:bg-gray-100" data-page="explore">
+                <i class="fas fa-map w-6 text-center text-teal-600"></i>
+                <span class="ml-3 font-medium">Explore</span>
+            </a>
+            <a href="#" class="drawer-link flex items-center p-3 rounded-lg hover:bg-gray-100" data-page="wallet">
+                <i class="fas fa-wallet w-6 text-center text-teal-600"></i>
+                <span class="ml-3 font-medium">Wallet</span>
+            </a>
+            <a href="#" class="drawer-link flex items-center p-3 rounded-lg hover:bg-gray-100" data-page="settings">
+                <i class="fas fa-cog w-6 text-center text-gray-500"></i>
+                <span class="ml-3 font-medium text-gray-700">Settings</span>
+            </a>
+            <a href="#" class="drawer-link flex items-center p-3 rounded-lg hover:bg-gray-100" data-page="help">
+                <i class="fas fa-info-circle w-6 text-center text-gray-500"></i>
+                <span class="ml-3 font-medium text-gray-700">Help & Support</span>
+            </a>
+        </nav>
+        <div class="absolute bottom-4 left-4 right-4">
+            <button class="w-full bg-red-500 text-white p-3 rounded-lg font-medium" onclick="showToast('Logged out!')">Log Out</button>
+        </div>
+    </div>
+    <div id="drawer-overlay" class="drawer-overlay"></div>
+
+    <!-- Main App Container -->
+    <div class="container-wrapper">
+        <!-- Top Bar -->
+        <header class="p-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div id="drawer-toggle" class="cursor-pointer">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                        <i class="fas fa-bars text-teal-600"></i>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm text-gray-700">Welcome back,</p>
+                    <div class="flex items-center">
+                        <h1 class="text-lg font-bold">Kaushik</h1>
+                        <div class="pulse ml-2 px-2 py-1 bg-teal-100 rounded-full flex items-center space-x-1">
+                            <i class="fas fa-star text-teal-500 text-xs"></i>
+                            <span class="text-teal-600 text-xs font-medium">Explorer</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="cursor-pointer" id="profile-btn">
+                <img src="https://placehold.co/40x40/6366f1/ffffff?text=K" alt="Profile" class="rounded-full shadow-lg">
+            </div>
+        </header>
+
+        <!-- Main Content Area (Scrollable) -->
+        <main class="flex-1 overflow-y-auto no-scrollbar pt-2">
+            <!-- Home Page Content -->
+            <div id="home-page" class="page-content">
+                <!-- Carousel Section -->
+                <section id="carousel-container" class="relative overflow-x-hidden">
+                    <div id="carousel-scroller" class="flex no-scrollbar snap-x snap-mandatory overflow-x-auto" style="scroll-snap-type: x mandatory;">
+                        <!-- Carousel items will be injected here -->
+                    </div>
+                </section>
+            
+                <!-- Search Bar Section -->
+                <section class="p-4">
+                    <div class="relative flex items-center bg-white rounded-2xl shadow-md p-2">
+                        <i class="fas fa-search text-gray-400 ml-2"></i>
+                        <input type="text" id="search-input" placeholder="Search hotels, experiences, places..." class="flex-1 ml-2 outline-none bg-white placeholder-gray-400 text-sm">
+                        <button id="search-btn" class="bg-teal-500 text-white rounded-lg p-3 w-12 h-12 flex items-center justify-center">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </section>
+            
+                <!-- Features Grid Section -->
+                <section class="p-4">
+                    <div class="grid grid-cols-3 gap-4" id="features-grid">
+                        <!-- Feature cards will be injected here -->
+                    </div>
+                </section>
+            
+                <!-- Popular Places Section -->
+                <section>
+                    <div class="flex justify-between items-center px-4 mb-3">
+                        <h2 class="text-lg font-bold">Popular Places</h2>
+                        <button class="text-teal-600 font-medium text-sm" id="view-all-places-btn">See all</button>
+                    </div>
+                    <div id="places-scroller" class="flex no-scrollbar overflow-x-auto px-4 space-x-3">
+                        <!-- Place cards will be injected here -->
+                    </div>
+                </section>
+            
+                <!-- Recommended Packages Section -->
+                <section class="mt-6">
+                    <div class="flex justify-between items-center px-4 mb-3">
+                        <h2 class="text-lg font-bold">Recommended Packages</h2>
+                        <button class="text-teal-600 font-medium text-sm" id="view-deals-btn">View deals</button>
+                    </div>
+                    <div id="packages-scroller" class="flex no-scrollbar overflow-x-auto px-4 space-x-3">
+                        <!-- Package cards will be injected here -->
+                    </div>
+                </section>
+            
+                <!-- Quick Actions Section -->
+                <section class="mt-6">
+                    <div class="flex justify-between items-center px-4 mb-3">
+                        <h2 class="text-lg font-bold">Quick Actions</h2>
+                        <button class="text-teal-600 font-medium text-sm" id="more-actions-btn">More</button>
+                    </div>
+                    <div id="quick-actions-row" class="flex justify-between px-4 space-x-2">
+                        <!-- Quick action cards will be injected here -->
+                    </div>
+                </section>
+
+                <!-- Help Section -->
+                <section class="mt-8 px-4">
+                    <div class="bg-white rounded-xl shadow-md p-4 flex items-center space-x-4">
+                        <img src="https://placehold.co/60x60/a855f7/ffffff?text=AI" alt="AI Assistant" class="rounded-full">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-sm">Need help planning your trip?</h3>
+                            <p class="text-xs text-gray-500 mt-1">Chat with our travel assistant for suggestions</p>
+                        </div>
+                        <button id="chat-btn" class="bg-teal-500 text-white rounded-lg px-4 py-2 text-sm font-medium">Chat</button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Explore Page Content -->
+            <div id="explore-page" class="page-content hidden p-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Explore New Destinations</h2>
+                <div id="explore-categories-grid" class="grid grid-cols-2 gap-4">
+                    <!-- Categories will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Wallet Page Content -->
+            <div id="wallet-page" class="page-content hidden p-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">My Wallet</h2>
+                <div class="bg-teal-600 text-white rounded-xl p-6 shadow-xl">
+                    <div class="flex justify-between items-center">
+                        <p class="text-lg font-medium">Current Balance</p>
+                        <i class="fas fa-wallet text-2xl"></i>
+                    </div>
+                    <h3 class="text-4xl font-bold mt-2">₹5,000.00</h3>
+                    <div class="flex space-x-4 mt-6">
+                        <button class="flex-1 bg-white/20 text-white p-3 rounded-lg text-sm font-medium">Add Funds</button>
+                        <button class="flex-1 bg-white/20 text-white p-3 rounded-lg text-sm font-medium">Send Money</button>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Recent Transactions</h3>
+                    <ul class="bg-white rounded-xl shadow-md divide-y divide-gray-200">
+                        <li class="flex justify-between items-center p-4">
+                            <div class="flex items-center">
+                                <div class="bg-gray-100 p-3 rounded-full mr-4">
+                                    <i class="fas fa-hotel text-gray-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">Hotel Booking</p>
+                                    <p class="text-sm text-gray-500">Oct 24, 2024</p>
+                                </div>
+                            </div>
+                            <span class="text-red-500 font-semibold">-₹2,500.00</span>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <div class="flex items-center">
+                                <div class="bg-gray-100 p-3 rounded-full mr-4">
+                                    <i class="fas fa-receipt text-gray-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">Trip Expenses</p>
+                                    <p class="text-sm text-gray-500">Oct 23, 2024</p>
+                                </div>
+                            </div>
+                            <span class="text-red-500 font-semibold">-₹800.00</span>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <div class="flex items-center">
+                                <div class="bg-gray-100 p-3 rounded-full mr-4">
+                                    <i class="fas fa-arrow-down text-gray-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800">Funds Received</p>
+                                    <p class="text-sm text-gray-500">Oct 22, 2024</p>
+                                </div>
+                            </div>
+                            <span class="text-green-500 font-semibold">+₹1,000.00</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Settings Page Content -->
+            <div id="settings-page" class="page-content hidden p-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Settings</h2>
+                
+                <!-- Account Section -->
+                <div class="bg-white rounded-xl shadow-md mb-6">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-700">Account</h3>
+                    </div>
+                    <ul class="divide-y divide-gray-200">
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">Edit Profile</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">Change Password</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Preferences Section -->
+                <div class="bg-white rounded-xl shadow-md mb-6">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-700">Preferences</h3>
+                    </div>
+                    <ul class="divide-y divide-gray-200">
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">Push Notifications</span>
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">App Theme</span>
+                            <select class="rounded-lg border border-gray-300 p-2 text-sm bg-white">
+                                <option>Light</option>
+                                <option>Dark</option>
+                            </select>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">Currency</span>
+                            <select class="rounded-lg border border-gray-300 p-2 text-sm bg-white">
+                                <option>₹ INR</option>
+                                <option>$ USD</option>
+                                <option>€ EUR</option>
+                            </select>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Help & About Section -->
+                <div class="bg-white rounded-xl shadow-md">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-700">Help & About</h3>
+                    </div>
+                    <ul class="divide-y divide-gray-200">
+                        <li class="flex justify-between items-center p-4" onclick="showPage('help')">
+                            <span class="text-gray-600">Help & Support</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">Privacy Policy</span>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </li>
+                        <li class="flex justify-between items-center p-4">
+                            <span class="text-gray-600">App Version</span>
+                            <span class="text-sm text-gray-500">1.0.1</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Help Page Content -->
+            <div id="help-page" class="page-content hidden p-4">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Help & Support</h2>
+                <div class="bg-white rounded-xl shadow-md p-4 mb-4">
+                    <h3 class="font-bold text-lg">FAQ</h3>
+                    <p class="text-sm text-gray-600 mt-2">Find answers to common questions.</p>
+                    <button class="mt-4 w-full bg-teal-500 text-white rounded-lg py-2 text-sm">Browse FAQ</button>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-4">
+                    <h3 class="font-bold text-lg">Contact Us</h3>
+                    <p class="text-sm text-gray-600 mt-2">Our support team is ready to help.</p>
+                    <button class="mt-4 w-full bg-teal-500 text-white rounded-lg py-2 text-sm">Start a Chat</button>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <footer class="text-center text-gray-400 text-xs mt-8 pb-4">
+                © 2025 Smart Tourism Hub
+            </footer>
+        </main>
+        
+        <!-- Bottom Navigation Bar -->
+        <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-30">
+            <div class="flex justify-around items-center h-16">
+                <button class="nav-btn flex flex-col items-center text-gray-400 active-nav-btn" data-page="home">
+                    <i class="fas fa-home text-xl"></i>
+                    <span class="text-xs mt-1">Home</span>
+                </button>
+                <button class="nav-btn flex flex-col items-center text-gray-400" data-page="explore">
+                    <i class="fas fa-map text-xl"></i>
+                    <span class="text-xs mt-1">Explore</span>
+                </button>
+                <div class="w-16 h-16 rounded-full -mt-8 flex items-center justify-center bg-transparent">
+                    <button id="fab-quick-book" class="w-14 h-14 bg-teal-500 text-white rounded-full shadow-lg flex items-center justify-center">
+                        <i class="fas fa-plus text-2xl"></i>
+                    </button>
+                </div>
+                <button class="nav-btn flex flex-col items-center text-gray-400" data-page="wallet">
+                    <i class="fas fa-wallet text-xl"></i>
+                    <span class="text-xs mt-1">Wallet</span>
+                </button>
+                <button class="nav-btn flex flex-col items-center text-gray-400" data-page="profile">
+                    <i class="fas fa-user text-xl"></i>
+                    <span class="text-xs mt-1">Profile</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Toast message container -->
+    <div id="toast-container" class="toast"></div>
+
+    <!-- JavaScript for dynamic functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Data Definitions ---
+            const featureItems = [
+                { title: "AI Translation", icon: "fa-solid fa-language", color: "bg-purple-500" },
+                { title: "AR Place View", icon: "fa-solid fa-cube", color: "bg-indigo-500" },
+                { title: "Virtual Preview", icon: "fa-solid fa-vr-cardboard", color: "bg-orange-500" },
+                { title: "Paperless Ticket", icon: "fa-solid fa-ticket", color: "bg-teal-500" },
+                { title: "AI Safety Alerts", icon: "fa-solid fa-triangle-exclamation", color: "bg-red-500" },
+                { title: "Spending Tracker", icon: "fa-solid fa-chart-pie", color: "bg-green-500" },
+                { title: "All-in-One Wallet", icon: "fa-solid fa-wallet", color: "bg-blue-500" },
+                { title: "AI Memory Album", icon: "fa-solid fa-images", color: "bg-pink-500" },
+                { title: "Social Challenges", icon: "fa-solid fa-trophy", color: "bg-amber-500" },
+                { title: "Cultural Tips", icon: "fa-solid fa-book", color: "bg-stone-500" },
+                { title: "Volunteer Tourism", icon: "fa-solid fa-hands-holding-child", color: "bg-cyan-500" },
+                { title: "Group Split Pay", icon: "fa-solid fa-users", color: "bg-slate-500" },
+            ];
+
+            const popularPlaces = [
+                { name: "Eiffel Tower", location: "Paris, France", imageUrl: "https://picsum.photos/id/1003/400/300", description: "The Eiffel Tower is a wrought-iron lattice tower on the Champ de Mars in Paris, France. It is a world-renowned symbol of French culture and one of the most visited monuments in the world." },
+                { name: "Taj Mahal", location: "Agra, India", imageUrl: "https://picsum.photos/id/1015/400/300", description: "The Taj Mahal is an ivory-white marble mausoleum on the south bank of the Yamuna river in the Indian city of Agra. It was commissioned in 1631 by the Mughal emperor, Shah Jahan, to house the tomb of his favourite wife, Mumtaz Mahal." },
+                { name: "Colosseum", location: "Rome, Italy", imageUrl: "https://picsum.photos/id/1025/400/300", description: "The Colosseum, also known as the Flavian Amphitheatre, is an oval amphitheatre in the centre of the city of Rome, Italy. Built of travertine limestone, tuff, and brick-faced concrete, it was the largest amphitheatre ever built." },
+                { name: "Great Wall", location: "China", imageUrl: "https://picsum.photos/id/1031/400/300", description: "The Great Wall of China is a series of fortifications that were built across the historical northern borders of ancient Chinese states and Imperial China as protection against various nomadic groups from the Eurasian Steppe." },
+                { name: "Statue of Liberty", location: "New York, USA", imageUrl: "https://picsum.photos/id/1043/400/300", description: "The Statue of Liberty is a colossal neoclassical sculpture on Liberty Island in New York Harbor in New York City. The copper statue was a gift from the people of France to the people of the United States." },
+            ];
+            
+            const exploreCategories = [
+                { title: "Cities", icon: "fa-city", imageUrl: "https://images.unsplash.com/photo-1544929875-1a3b838b0009?q=80&w=2070&auto=format&fit=crop", places: [
+                    { name: "Paris, France", imageUrl: "https://images.unsplash.com/photo-1502602898625-f8510168019e?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "New York, USA", imageUrl: "https://images.unsplash.com/photo-1512917774080-9991f1c6c06a?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Dubai, UAE", imageUrl: "https://images.unsplash.com/photo-1518623049586-7ac935048d39?q=80&w=1974&auto=format&fit=crop" }
+                ]},
+                { title: "Mountains", icon: "fa-mountain", imageUrl: "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?q=80&w=2070&auto=format&fit=crop", places: [
+                    { name: "Mount Everest", imageUrl: "https://images.unsplash.com/photo-1522163182402-834f871fd851?q=80&w=1906&auto=format&fit=crop" },
+                    { name: "Swiss Alps", imageUrl: "https://images.unsplash.com/photo-1509040845348-185d266e74b3?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Andes", imageUrl: "https://images.unsplash.com/photo-1616422899450-48201297d22b?q=80&w=2070&auto=format&fit=crop" }
+                ]},
+                { title: "Beaches", icon: "fa-umbrella-beach", imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2073&auto=format&fit=crop", places: [
+                    { name: "Maldives", imageUrl: "https://images.unsplash.com/photo-1555518010-bb2f7b88411b?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Maui, Hawaii", imageUrl: "https://images.unsplash.com/photo-1520268481222-38f381015f60?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Bora Bora", imageUrl: "https://images.unsplash.com/photo-1582250269049-7c8584824e8e?q=80&w=2070&auto=format&fit=crop" }
+                ]},
+                { title: "Deserts", icon: "fa-sun-plant-wilt", imageUrl: "https://images.unsplash.com/photo-1473580461825-e51c6c8e31dc?q=80&w=1974&auto=format&fit=crop", places: [
+                    { name: "Sahara Desert", imageUrl: "https://images.unsplash.com/photo-1581023719003-8d6896507c6f?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Gobi Desert", imageUrl: "https://images.unsplash.com/photo-1514757529486-5d6b4618a8b1?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Atacama Desert", imageUrl: "https://images.unsplash.com/photo-1589304192138-c68910d65b05?q=80&w=1974&auto=format&fit=crop" }
+                ]},
+                { title: "Historical", icon: "fa-landmark", imageUrl: "https://images.unsplash.com/photo-1555518010-bb2f7b88411b?q=80&w=1974&auto=format&fit=crop", places: [
+                    { name: "Rome, Italy", imageUrl: "https://images.unsplash.com/photo-1549071018-86d1a1b1b4d0?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Machu Picchu, Peru", imageUrl: "https://images.unsplash.com/photo-1526487535513-575191370213?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Giza Pyramids, Egypt", imageUrl: "https://images.unsplash.com/photo-1616140502120-d39f72782b1d?q=80&w=2070&auto=format&fit=crop" }
+                ]},
+                { title: "Wildlife", icon: "fa-paw", imageUrl: "https://images.unsplash.com/photo-1534796636687-349887754d9c?q=80&w=1931&auto=format&fit=crop", places: [
+                    { name: "Serengeti National Park", imageUrl: "https://images.unsplash.com/photo-1534796636687-349887754d9c?q=80&w=1931&auto=format&fit=crop" },
+                    { name: "Amazon Rainforest", imageUrl: "https://images.unsplash.com/photo-1610444589762-b91c01e66c6b?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Galápagos Islands", imageUrl: "https://images.unsplash.com/photo-1606558661642-17181c00a6e0?q=80&w=1974&auto=format&fit=crop" }
+                ]},
+                { title: "Food", icon: "fa-utensils", imageUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop", places: [
+                    { name: "Street Food in Bangkok", imageUrl: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Pizza in Naples", imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Tacos in Mexico City", imageUrl: "https://images.unsplash.com/photo-1551782450-a2132b4fdc25?q=80&w=2070&auto=format&fit=crop" }
+                ]},
+                { title: "Adventure", icon: "fa-person-hiking", imageUrl: "https://images.unsplash.com/photo-1538318859186-b457e5e34747?q=80&w=1974&auto=format&fit=crop", places: [
+                    { name: "New Zealand", imageUrl: "https://images.unsplash.com/photo-1518063717520-22e4c27a9221?q=80&w=1974&auto=format&fit=crop" },
+                    { name: "Swiss Alps", imageUrl: "https://images.unsplash.com/photo-1509040845348-185d266e74b3?q=80&w=2070&auto=format&fit=crop" },
+                    { name: "Costa Rica", imageUrl: "https://images.unsplash.com/photo-1563203920-569527f7a77b?q=80&w=2070&auto=format&fit=crop" }
+                ]},
+            ];
+
+            const packageDeals = [
+                { title: "City Explorer", subtitle: "3 days • 2 nights", price: 129.99, imageUrl: "https://picsum.photos/id/1056/400/300" },
+                { title: "Beach Relax", subtitle: "5 days • 4 nights", price: 349.99, imageUrl: "https://picsum.photos/id/1060/400/300" },
+                { title: "Mountain Trek", subtitle: "4 days • 3 nights", price: 199.99, imageUrl: "https://picsum.photos/id/1069/400/300" },
+            ];
+
+            const carouselImages = [
+                "https://picsum.photos/id/1018/1000/600",
+                "https://picsum.photos/id/1015/1000/600",
+                "https://picsum.photos/id/1011/1000/600",
+                "https://picsum.photos/id/1016/1000/600"
+            ];
+
+            const quickActions = [
+                { title: "Scan Ticket", icon: "fa-solid fa-qrcode", color: "bg-purple-500" },
+                { title: "Nearby", icon: "fa-solid fa-location-dot", color: "bg-green-500" },
+                { title: "Translate", icon: "fa-solid fa-language", color: "bg-orange-500" },
+                { title: "Wallet", icon: "fa-solid fa-wallet", color: "bg-blue-500" },
+            ];
+            
+            // --- UI Rendering Functions ---
+            
+            function renderCarousel() {
+                const carouselScroller = document.getElementById('carousel-scroller');
+                if (!carouselScroller) return;
+                carouselScroller.innerHTML = '';
+                carouselImages.forEach((url, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'carousel-item snap-center shrink-0 w-11/12 md:w-5/6 mr-4 rounded-xl shadow-lg relative cursor-pointer';
+                    item.style.backgroundImage = `url('${url}')`;
+                    item.style.backgroundSize = 'cover';
+                    item.style.backgroundPosition = 'center';
+                    item.style.height = '200px';
+
+                    // Add content and functionality
+                    item.innerHTML = `
+                        <div class="absolute inset-0 bg-black/30 rounded-xl"></div>
+                        <div class="absolute left-4 bottom-4 text-white p-2 rounded-xl">
+                            <i class="fas fa-map-marker-alt text-white text-xs"></i>
+                            <span class="ml-2 text-sm font-semibold">Explore top destinations</span>
+                        </div>
+                        <div class="absolute right-3 top-3 px-3 py-1 bg-white/70 rounded-xl text-black text-sm">
+                            ${index + 1}/${carouselImages.length}
+                        </div>
+                    `;
+                    carouselScroller.appendChild(item);
+                });
+            }
+
+            function renderFeatures(filterQuery = '') {
+                const grid = document.getElementById('features-grid');
+                if (!grid) return;
+                grid.innerHTML = '';
+                const filteredFeatures = featureItems.filter(f => f.title.toLowerCase().includes(filterQuery.toLowerCase()));
+                
+                filteredFeatures.forEach(feature => {
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-xl shadow-md cursor-pointer text-center text-white ${feature.color}`;
+                    card.innerHTML = `
+                        <div class="w-12 h-12 rounded-full bg-white/30 mx-auto flex items-center justify-center mb-2">
+                            <i class="${feature.icon} text-xl"></i>
+                        </div>
+                        <p class="text-sm font-medium mt-1">${feature.title}</p>
+                    `;
+                    card.addEventListener('click', () => {
+                        // Functionality for each feature
+                        switch (feature.title) {
+                            case 'AI Translation':
+                                showTranslationModal();
+                                break;
+                            case 'Virtual Preview':
+                            case 'AR Place View': // Both use a similar visual simulation
+                                showVirtualPreviewModal();
+                                break;
+                            case 'Paperless Ticket':
+                                showTicketModal();
+                                break;
+                            case 'Spending Tracker':
+                                showSpendingTrackerModal();
+                                break;
+                            case 'All-in-One Wallet':
+                                showWalletModal();
+                                break;
+                            case 'Group Split Pay':
+                                showSplitPayModal();
+                                break;
+                            case 'Social Challenges':
+                                showChallengesModal();
+                                break;
+                            case 'Cultural Tips':
+                                showTipsModal();
+                                break;
+                            case 'Volunteer Tourism':
+                                showVolunteerModal();
+                                break;
+                            case 'AI Safety Alerts':
+                                showSafetyAlertsModal();
+                                break;
+                            case 'AI Memory Album':
+                                showMemoryAlbumModal();
+                                break;
+                            default:
+                                showToast(`${feature.title} coming soon!`);
+                                break;
+                        }
+                    });
+                    grid.appendChild(card);
+                });
+            }
+            
+            function renderPlaces(filterQuery = '') {
+                const scroller = document.getElementById('places-scroller');
+                if (!scroller) return;
+                scroller.innerHTML = '';
+                const filteredPlaces = popularPlaces.filter(p => p.name.toLowerCase().includes(filterQuery.toLowerCase()) || p.location.toLowerCase().includes(filterQuery.toLowerCase()));
+
+                filteredPlaces.forEach(place => {
+                    const card = document.createElement('div');
+                    card.className = 'shrink-0 w-36 h-48 rounded-xl shadow-lg relative bg-gray-300 cursor-pointer';
+                    card.style.backgroundImage = `url('${place.imageUrl}')`;
+                    card.style.backgroundSize = 'cover';
+                    card.style.backgroundPosition = 'center';
+
+                    card.innerHTML = `
+                        <div class="absolute inset-0 bg-black/40 rounded-xl"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <h3 class="font-bold text-sm leading-tight">${place.name}</h3>
+                            <p class="text-xs text-gray-200 mt-1">${place.location}</p>
+                        </div>
+                        <button class="absolute top-2 right-2 bg-black/40 text-white rounded-md p-2">
+                            <i class="fas fa-expand-arrows-alt text-xs"></i>
+                        </button>
+                    `;
+                    card.addEventListener('click', (e) => {
+                        showModal(`
+                            <h3 class="text-xl font-bold mb-4">${place.name}</h3>
+                            <img src="${place.imageUrl}" alt="${place.name}" class="w-full h-40 object-cover rounded-xl mb-4">
+                            <p class="text-gray-600">${place.description}</p>
+                            <div class="flex space-x-2 mt-4">
+                                <button class="flex-1 bg-teal-500 text-white rounded-md p-3 text-sm" onclick="showVirtualPreviewModal()">Virtual Preview</button>
+                                <button class="flex-1 border border-teal-500 text-teal-500 rounded-md p-3 text-sm" onclick="showTicketModal()">Get Ticket</button>
+                            </div>
+                        `);
+                    });
+                    scroller.appendChild(card);
+                });
+            }
+
+            function renderExploreCategories(filterQuery = '') {
+                const grid = document.getElementById('explore-categories-grid');
+                if (!grid) return;
+                grid.innerHTML = '';
+                const filteredCategories = exploreCategories.filter(cat => cat.title.toLowerCase().includes(filterQuery.toLowerCase()));
+
+                filteredCategories.forEach(category => {
+                    const card = document.createElement('div');
+                    card.className = 'relative rounded-lg overflow-hidden h-48 shadow-lg cursor-pointer';
+                    card.style.backgroundImage = `url('${category.imageUrl}')`;
+                    card.style.backgroundSize = 'cover';
+                    card.style.backgroundPosition = 'center';
+                    
+                    card.innerHTML = `
+                        <div class="absolute inset-0 bg-black/40 flex items-end p-4 rounded-lg">
+                            <p class="text-white font-bold text-lg flex items-center">
+                                <i class="fas ${category.icon} mr-2"></i>
+                                ${category.title}
+                            </p>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => {
+                        const placesHtml = category.places.map(place => `
+                            <div class="bg-gray-100 p-3 rounded-lg flex items-center space-x-2">
+                                <img src="${place.imageUrl}" class="w-10 h-10 rounded object-cover">
+                                <span class="text-sm font-semibold">${place.name}</span>
+                            </div>
+                        `).join('');
+
+                        showModal(`
+                            <h3 class="text-xl font-bold mb-4">Exploring ${category.title}</h3>
+                            <p class="text-gray-600 mb-4">Discover the best of ${category.title.toLowerCase()} with these top destinations.</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                ${placesHtml}
+                            </div>
+                        `);
+                    });
+                    grid.appendChild(card);
+                });
+            }
+            
+            function renderPackages() {
+                const scroller = document.getElementById('packages-scroller');
+                if (!scroller) return;
+                scroller.innerHTML = '';
+                packageDeals.forEach(deal => {
+                    const card = document.createElement('div');
+                    card.className = 'shrink-0 w-60 bg-white rounded-xl shadow-md p-3 flex space-x-3 cursor-pointer';
+                    card.innerHTML = `
+                        <img src="${deal.imageUrl}" alt="${deal.title}" class="w-24 h-24 object-cover rounded-md">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-sm">${deal.title}</h3>
+                            <p class="text-xs text-gray-500">${deal.subtitle}</p>
+                            <p class="font-bold text-teal-600 mt-2">₹${deal.price.toFixed(2)}</p>
+                        </div>
+                        <button class="absolute bottom-3 right-3 bg-teal-500 text-white text-xs px-3 py-1 rounded-full">Book</button>
+                    `;
+                    card.querySelector('button').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showToast(`Booked ${deal.title} (mock)`);
+                    });
+                    card.addEventListener('click', () => {
+                        showModal(`
+                           <h3 class="text-xl font-bold mb-4">${deal.title}</h3>
+                            <img src="${deal.imageUrl}" alt="${deal.title}" class="w-full h-40 object-cover rounded-xl mb-4">
+                            <p class="text-gray-600">${deal.subtitle}</p>
+                            <p class="mt-4 text-sm">This package includes flights, hotels, and activities for a seamless trip. The final price is ₹${deal.price.toFixed(2)}.</p>
+                            <div class="flex space-x-2 mt-4">
+                                <button class="flex-1 bg-teal-500 text-white rounded-md p-3 text-sm" onclick="showBookingConfirmationModal('${deal.title}', '${deal.price}')">Book Now</button>
+                                <button class="flex-1 border border-teal-500 text-teal-500 rounded-md p-3 text-sm" onclick="showToast('Agent contacted!');">Contact Agent</button>
+                            </div>
+                        `);
+                    });
+                    scroller.appendChild(card);
+                });
+            }
+            
+            function renderQuickActions() {
+                const actionsRow = document.getElementById('quick-actions-row');
+                if (!actionsRow) return;
+                actionsRow.innerHTML = '';
+                quickActions.forEach(action => {
+                    const btn = document.createElement('button');
+                    btn.className = `flex-1 p-3 rounded-lg shadow-md text-white transition-transform transform hover:scale-105 ${action.color}`;
+                    btn.innerHTML = `
+                        <i class="${action.icon} text-xl mb-1"></i>
+                        <span class="text-xs">${action.title}</span>
+                    `;
+                    btn.addEventListener('click', () => {
+                        switch(action.title) {
+                            case 'Scan Ticket':
+                                showTicketScannerModal();
+                                break;
+                            case 'Nearby':
+                                showNearbyModal();
+                                break;
+                            case 'Translate':
+                                showTranslationModal();
+                                break;
+                            case 'Wallet':
+                                showWalletModal();
+                                break;
+                            default:
+                                showToast(`${action.title} is a quick action.`);
+                        }
+                    });
+                    actionsRow.appendChild(btn);
+                });
+            }
+
+            // --- Core Functionality ---
+            function showToast(message) {
+                const toast = document.getElementById('toast-container');
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            function showModal(contentHtml) {
+                const modalOverlay = document.createElement('div');
+                modalOverlay.className = 'modal-overlay';
+                modalOverlay.innerHTML = `
+                    <div class="modal-content relative">
+                        ${contentHtml}
+                        <button class="absolute top-2 right-2 text-gray-500 hover:text-gray-700" onclick="document.body.removeChild(this.closest('.modal-overlay'))">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(modalOverlay);
+            }
+
+            function handleSearch() {
+                const query = document.getElementById('search-input').value;
+                if (query.trim() === '') {
+                    // If search is empty, re-render everything without a filter
+                    renderFeatures();
+                    renderPlaces();
+                    renderExploreCategories();
+                    return;
+                }
+                renderFeatures(query);
+                renderPlaces(query);
+                renderExploreCategories(query);
+            }
+
+            // --- Feature-specific Modals ---
+            function showTranslationModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">AI Translation</h3>
+                    <p class="text-gray-600 mb-2">Translate any text instantly.</p>
+                    <textarea id="translate-input" class="w-full h-32 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter text to translate..."></textarea>
+                    <div class="mt-4 flex space-x-2">
+                        <button class="flex-1 bg-teal-500 text-white rounded-md p-3 text-sm" onclick="showToast('Translating...');">Translate</button>
+                        <button class="flex-1 border border-teal-500 text-teal-500 rounded-md p-3 text-sm">Clear</button>
+                    </div>
+                    <div id="translation-output" class="mt-4 p-3 bg-gray-100 rounded-lg min-h-[60px] text-gray-800"></div>
+                `);
+            }
+
+            function showVirtualPreviewModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Virtual Preview</h3>
+                    <p class="text-gray-600 mb-2">Drag to explore the 3D model!</p>
+                    <div class="bg-gray-200 rounded-xl w-full" style="height: 300px;">
+                        <canvas id="virtual-preview-canvas" class="w-full h-full rounded-xl"></canvas>
+                    </div>
+                `);
+
+                // Start the 3D scene on canvas
+                const canvas = document.getElementById('virtual-preview-canvas');
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshNormalMaterial();
+                const cube = new THREE.Mesh(geometry, material);
+                scene.add(cube);
+
+                camera.position.z = 2;
+
+                let isDragging = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                
+                canvas.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                });
+
+                canvas.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+
+                    cube.rotation.y += deltaX * 0.01;
+                    cube.rotation.x += deltaY * 0.01;
+
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                });
+                
+                const animate = function () {
+                    requestAnimationFrame(animate);
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                // Handle resize
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(width, height);
+                    }
+                });
+                resizeObserver.observe(canvas);
+            }
+
+            function showTicketModal() {
+                const qrCodeData = `Ticket ID: 12345-67890\nUser: Kaushik\nDate: 2025-10-26\nEvent: Virtual Tour`;
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrCodeData)}`;
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Paperless Ticket</h3>
+                    <p class="text-gray-600 mb-4 text-center">Scan this QR code to use your ticket.</p>
+                    <div class="flex justify-center">
+                        <img src="${qrCodeUrl}" alt="QR Code" class="rounded-lg shadow-md">
+                    </div>
+                    <div class="mt-4 text-center">
+                        <p class="font-semibold">${qrCodeData.split('\n')[1]}</p>
+                        <p class="text-sm text-gray-500">${qrCodeData.split('\n')[0]}</p>
+                    </div>
+                    <button class="mt-4 w-full bg-teal-500 text-white rounded-md p-3 text-sm" onclick="showToast('Ticket downloaded!');">Download</button>
+                `);
+            }
+
+            function showSpendingTrackerModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Spending Tracker</h3>
+                    <p class="text-gray-600 mb-4">Your spending breakdown for this trip.</p>
+                    <canvas id="spending-chart-canvas"></canvas>
+                    <div class="mt-4 text-sm text-gray-700">
+                        <p class="mt-2">Total spent: <span class="font-bold">₹1,250</span></p>
+                        <ul class="list-disc list-inside mt-2">
+                            <li><span class="font-medium text-orange-500">Food:</span> ₹400</li>
+                            <li><span class="font-medium text-blue-500">Transport:</span> ₹350</li>
+                            <li><span class="font-medium text-teal-500">Activities:</span> ₹500</li>
+                        </ul>
+                    </div>
+                `);
+
+                const canvas = document.getElementById('spending-chart-canvas');
+                const ctx = canvas.getContext('2d');
+                const data = {
+                    'Food': { value: 400, color: '#f97316' },
+                    'Transport': { value: 350, color: '#3b82f6' },
+                    'Activities': { value: 500, color: '#14b8a6' }
+                };
+                const total = Object.values(data).reduce((sum, item) => sum + item.value, 0);
+                let currentAngle = 0;
+
+                for (const key in data) {
+                    const sliceAngle = (data[key].value / total) * 2 * Math.PI;
+                    ctx.beginPath();
+                    ctx.arc(canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) / 2 - 20, currentAngle, currentAngle + sliceAngle);
+                    ctx.lineTo(canvas.width / 2, canvas.height / 2);
+                    ctx.fillStyle = data[key].color;
+                    ctx.fill();
+                    currentAngle += sliceAngle;
+                }
+            }
+            
+            function showWalletModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">All-in-One Wallet</h3>
+                    <div class="bg-gray-100 p-4 rounded-xl shadow-inner text-center">
+                        <p class="text-sm text-gray-500">Current Balance</p>
+                        <h4 class="text-3xl font-bold text-teal-600 mt-1">₹5,000</h4>
+                    </div>
+                    <div class="mt-6">
+                        <h4 class="font-bold text-lg mb-2">Recent Transactions</h4>
+                        <ul class="space-y-3">
+                            <li class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                                <span>Hotel Booking</span>
+                                <span class="text-red-500">-₹2,500</span>
+                            </li>
+                            <li class="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
+                                <span>Recharge</span>
+                                <span class="text-green-500">+₹1,000</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="mt-6 flex space-x-2">
+                        <button class="flex-1 bg-teal-500 text-white rounded-md p-3 text-sm">Add Funds</button>
+                        <button class="flex-1 border border-teal-500 text-teal-500 rounded-md p-3 text-sm">Send Money</button>
+                    </div>
+                `);
+            }
+
+            function showSplitPayModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Group Split Pay</h3>
+                    <p class="text-gray-600 mb-4">Easily split bills with your travel group.</p>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3 p-3 bg-gray-100 rounded-lg">
+                            <div class="flex-1">
+                                <p class="font-bold">Dinner Bill</p>
+                                <p class="text-sm text-gray-500">Total: ₹800</p>
+                            </div>
+                            <button class="bg-teal-500 text-white px-3 py-1 rounded-full text-xs" onclick="showToast('Bill split!');">Split</button>
+                        </div>
+                        <div class="flex items-center space-x-3 p-3 bg-gray-100 rounded-lg">
+                            <div class="flex-1">
+                                <p class="font-bold">Hotel Room</p>
+                                <p class="text-sm text-gray-500">Total: ₹1,500</p>
+                            </div>
+                            <button class="bg-teal-500 text-white px-3 py-1 rounded-full text-xs" onclick="showToast('Bill split!');">Split</button>
+                        </div>
+                    </div>
+                `);
+            }
+            
+            function showChallengesModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Social Challenges</h3>
+                    <p class="text-gray-600 mb-4">Complete challenges to earn rewards and badges!</p>
+                    <ul class="space-y-4">
+                        <li class="p-4 bg-gray-100 rounded-xl">
+                            <h4 class="font-bold">Photo Scavenger Hunt</h4>
+                            <p class="text-sm text-gray-500">Take a photo at 5 iconic locations.</p>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                <div class="bg-amber-500 h-2.5 rounded-full" style="width: 60%"></div>
+                            </div>
+                        </li>
+                        <li class="p-4 bg-gray-100 rounded-xl">
+                            <h4 class="font-bold">Eat Like a Local</h4>
+                            <p class="text-sm text-gray-500">Try 3 local dishes and share a review.</p>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                <div class="bg-amber-500 h-2.5 rounded-full" style="width: 20%"></div>
+                            </div>
+                        </li>
+                    </ul>
+                `);
+            }
+            
+            function showTipsModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Cultural Tips</h3>
+                    <p class="text-gray-600 mb-4">Quick facts to help you blend in.</p>
+                    <div class="p-4 bg-gray-100 rounded-xl">
+                        <h4 class="font-bold mb-2">Tip for Japan</h4>
+                        <p class="text-sm">Tipping is not customary in Japan and can be considered rude. A simple "arigato" is the best way to show thanks.</p>
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-100 rounded-xl">
+                        <h4 class="font-bold mb-2">Tip for Italy</h4>
+                        <p class="text-sm">It's a common practice to stand and drink your coffee at the bar, which is often cheaper than taking a seat.</p>
+                    </div>
+                `);
+            }
+            
+            function showVolunteerModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Volunteer Tourism</h3>
+                    <p class="text-gray-600 mb-4">Give back to the places you visit.</p>
+                    <div class="p-4 bg-gray-100 rounded-xl">
+                        <h4 class="font-bold">Beach Cleanup, Goa</h4>
+                        <p class="text-sm text-gray-500">Join locals in keeping the beaches clean this weekend.</p>
+                        <button class="mt-2 w-full bg-cyan-500 text-white rounded-md p-3 text-sm" onclick="showToast('Registered for cleanup!');">Register</button>
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-100 rounded-xl">
+                        <h4 class="font-bold">Community Garden, Ooty</h4>
+                        <p class="text-sm text-gray-500">Help maintain the local community garden.</p>
+                        <button class="mt-2 w-full bg-cyan-500 text-white rounded-md p-3 text-sm" onclick="showToast('Registered for garden!');">Register</button>
+                    </div>
+                `);
+            }
+            
+            function showSafetyAlertsModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">AI Safety Alerts</h3>
+                    <p class="text-gray-600 mb-4">AI-powered alerts to keep you safe.</p>
+                    <div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-lg">
+                        <h4 class="font-bold text-yellow-800">Alert: Potential Crowd</h4>
+                        <p class="text-sm text-yellow-700 mt-1">AI analysis suggests high foot traffic at Eiffel Tower between 4 PM and 6 PM. Consider visiting in the morning.</p>
+                    </div>
+                    <div class="mt-4 p-4 bg-green-100 border-l-4 border-green-500 rounded-lg">
+                        <h4 class="font-bold text-green-800">Alert: Low Risk</h4>
+                        <p class="text-sm text-green-700 mt-1">No significant safety concerns in your current area.</p>
+                    </div>
+                `);
+            }
+
+            function showMemoryAlbumModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">AI Memory Album</h3>
+                    <p class="text-gray-600 mb-4">Your trip memories, curated by AI.</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <img src="https://picsum.photos/seed/mem1/200/200" class="rounded-lg">
+                        <img src="https://picsum.photos/seed/mem2/200/200" class="rounded-lg">
+                        <img src="https://picsum.photos/seed/mem3/200/200" class="rounded-lg">
+                        <img src="https://picsum.photos/seed/mem4/200/200" class="rounded-lg">
+                    </div>
+                    <button class="mt-4 w-full bg-pink-500 text-white rounded-md p-3 text-sm">Generate Story</button>
+                `);
+            }
+
+            function showBookingConfirmationModal(dealTitle, price) {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Booking Confirmation</h3>
+                    <div class="bg-green-100 p-4 rounded-xl text-green-800 text-center">
+                        <i class="fas fa-check-circle text-3xl mb-2"></i>
+                        <p class="font-semibold">Your booking is confirmed!</p>
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-100 rounded-xl">
+                        <p class="text-sm">**Package:** <span class="font-bold">${dealTitle}</span></p>
+                        <p class="text-sm">**Total Cost:** <span class="font-bold">₹${price}</span></p>
+                        <p class="text-xs text-gray-500 mt-2">A confirmation email has been sent to your registered email address.</p>
+                    </div>
+                `);
+            }
+
+            function showTicketScannerModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Scan Ticket</h3>
+                    <p class="text-gray-600 mb-4 text-center">Place your QR code in the frame to scan.</p>
+                    <div class="relative w-full aspect-square bg-gray-200 rounded-xl flex items-center justify-center">
+                        <div class="absolute inset-0 border-8 border-dashed border-gray-400 rounded-xl"></div>
+                        <i class="fas fa-qrcode text-6xl text-gray-500 animate-pulse"></i>
+                    </div>
+                `);
+            }
+
+            function showNearbyModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">Nearby Attractions</h3>
+                    <div class="w-full bg-gray-200 rounded-xl" style="height: 300px;">
+                        <img src="https://placehold.co/500x300/e2e8f0/64748b?text=Map+View" class="w-full h-full object-cover rounded-xl">
+                    </div>
+                    <div class="mt-4 space-y-2">
+                        <div class="p-3 bg-gray-100 rounded-lg flex items-center">
+                            <i class="fas fa-utensils text-teal-600 mr-3"></i>
+                            <div>
+                                <p class="font-semibold">Local Cafe</p>
+                                <p class="text-xs text-gray-500">200m away</p>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-100 rounded-lg flex items-center">
+                            <i class="fas fa-store text-teal-600 mr-3"></i>
+                            <div>
+                                <p class="font-semibold">Souvenir Shop</p>
+                                <p class="text-xs text-gray-500">500m away</p>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+
+            function showChatModal() {
+                showModal(`
+                    <h3 class="text-xl font-bold mb-4">AI Travel Assistant</h3>
+                    <div id="chat-box" class="h-64 overflow-y-auto p-4 bg-gray-100 rounded-lg space-y-4">
+                        <div class="flex justify-start">
+                            <div class="bg-teal-500 text-white p-3 rounded-xl rounded-bl-none max-w-[80%]">
+                                Hi, I'm your AI travel assistant. How can I help you plan your trip?
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <div class="bg-gray-300 text-gray-800 p-3 rounded-xl rounded-br-none max-w-[80%]">
+                                I need suggestions for places to visit in Paris.
+                            </div>
+                        </div>
+                        <div class="flex justify-start">
+                            <div class="bg-teal-500 text-white p-3 rounded-xl rounded-bl-none max-w-[80%]">
+                                Paris has so many wonderful places! Besides the Eiffel Tower, you should consider visiting the Louvre Museum and Notre Dame Cathedral.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex space-x-2">
+                        <input type="text" id="chat-input" class="flex-1 p-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Type a message...">
+                        <button class="w-12 h-12 bg-teal-500 text-white rounded-full flex items-center justify-center">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                `);
+            }
+
+            function showProfileModal() {
+                showModal(`
+                    <div class="w-full">
+                        <div class="text-center mb-6">
+                            <img src="https://placehold.co/80x80/6366f1/ffffff?text=K" alt="Profile" class="rounded-full mx-auto mb-3 shadow-lg">
+                            <h3 class="text-2xl font-bold">Kaushik</h3>
+                            <p class="text-sm text-gray-500">kaushik.explorer@email.com</p>
+                            <span class="inline-block mt-2 px-3 py-1 bg-teal-100 text-teal-600 rounded-full text-xs font-medium">Explorer</span>
+                        </div>
+                        
+                        <!-- Tabs -->
+                        <div class="flex justify-center border-b border-gray-200 mb-4">
+                            <button class="profile-tab-btn flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 border-transparent transition-colors duration-200 hover:text-teal-600 hover:border-teal-600" data-tab="details">Details</button>
+                            <button class="profile-tab-btn flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 border-transparent transition-colors duration-200 hover:text-teal-600 hover:border-teal-600" data-tab="history">History</button>
+                        </div>
+                        
+                        <!-- Tab Content -->
+                        <div id="profile-details-content" class="profile-tab-content">
+                            <ul class="space-y-4">
+                                <li class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm font-semibold text-gray-600">Full Name</p>
+                                    <p class="mt-1 font-bold">Kaushik Kumar</p>
+                                </li>
+                                <li class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm font-semibold text-gray-600">Membership</p>
+                                    <p class="mt-1 font-bold">Gold Tier</p>
+                                </li>
+                                <li class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm font-semibold text-gray-600">Joined</p>
+                                    <p class="mt-1 font-bold">October 2024</p>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div id="profile-history-content" class="profile-tab-content hidden">
+                            <ul class="space-y-4">
+                                <li class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                                    <h4 class="font-bold">Trip to Paris</h4>
+                                    <p class="text-sm text-gray-600 mt-1">October 20-25, 2024</p>
+                                    <span class="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">Completed</span>
+                                </li>
+                                <li class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                                    <h4 class="font-bold">Trip to Rome</h4>
+                                    <p class="text-sm text-gray-600 mt-1">November 10-15, 2024</p>
+                                    <span class="inline-block mt-2 px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">Completed</span>
+                                </li>
+                                <li class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                                    <h4 class="font-bold">Trip to Tokyo</h4>
+                                    <p class="text-sm text-gray-600 mt-1">December 5-10, 2024</p>
+                                    <span class="inline-block mt-2 px-2 py-1 bg-amber-100 text-amber-600 text-xs rounded-full">Upcoming</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <style>
+                        /* For the toggle switch in settings */
+                        .switch {
+                          position: relative;
+                          display: inline-block;
+                          width: 40px;
+                          height: 20px;
+                        }
+                        .switch input {
+                          opacity: 0;
+                          width: 0;
+                          height: 0;
+                        }
+                        .slider {
+                          position: absolute;
+                          cursor: pointer;
+                          top: 0;
+                          left: 0;
+                          right: 0;
+                          bottom: 0;
+                          background-color: #ccc;
+                          transition: .4s;
+                        }
+                        .slider:before {
+                          position: absolute;
+                          content: "";
+                          height: 16px;
+                          width: 16px;
+                          left: 2px;
+                          bottom: 2px;
+                          background-color: white;
+                          transition: .4s;
+                        }
+                        input:checked + .slider {
+                          background-color: #10b981;
+                        }
+                        input:checked + .slider:before {
+                          transform: translateX(20px);
+                        }
+                        .slider.round {
+                          border-radius: 20px;
+                        }
+                        .slider.round:before {
+                          border-radius: 50%;
+                        }
+                    </style>
+                `);
+
+                // Tab switching logic for the profile modal
+                const tabs = document.querySelectorAll('.profile-tab-btn');
+                const contents = document.querySelectorAll('.profile-tab-content');
+
+                function switchTab(tabId) {
+                    tabs.forEach(tab => {
+                        tab.classList.remove('text-teal-600', 'border-teal-600');
+                        tab.classList.add('text-gray-500', 'border-transparent');
+                    });
+                    document.querySelector(`[data-tab="${tabId}"]`).classList.add('text-teal-600', 'border-teal-600');
+                    document.querySelector(`[data-tab="${tabId}"]`).classList.remove('text-gray-500', 'border-transparent');
+
+                    contents.forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`profile-${tabId}-content`).classList.remove('hidden');
+                }
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        const tabId = e.target.getAttribute('data-tab');
+                        switchTab(tabId);
+                    });
+                });
+
+                // Set initial active tab
+                switchTab('details');
+            }
+
+            // --- Event Listeners ---
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSearch();
+            });
+
+            // Top Bar
+            const sideDrawer = document.getElementById('side-drawer');
+            const drawerOverlay = document.getElementById('drawer-overlay');
+            document.getElementById('drawer-toggle').addEventListener('click', () => {
+                sideDrawer.classList.add('open');
+                drawerOverlay.classList.add('visible');
+            });
+            document.getElementById('close-drawer').addEventListener('click', () => {
+                sideDrawer.classList.remove('open');
+                drawerOverlay.classList.remove('visible');
+            });
+            drawerOverlay.addEventListener('click', () => {
+                sideDrawer.classList.remove('open');
+                drawerOverlay.classList.remove('visible');
+            });
+            document.getElementById('profile-btn').addEventListener('click', showProfileModal);
+            
+            // Section buttons
+            document.getElementById('view-all-places-btn').addEventListener('click', () => showPage('explore'));
+            document.getElementById('view-deals-btn').addEventListener('click', () => showToast('Viewing all deals.'));
+            document.getElementById('more-actions-btn').addEventListener('click', () => showToast('Viewing more actions.'));
+            document.getElementById('chat-btn').addEventListener('click', showChatModal);
+            
+            // Floating Action Button
+            document.getElementById('fab-quick-book').addEventListener('click', () => showToast('Quick Book feature coming soon!'));
+            
+            // Bottom Nav & Drawer Navigation
+            const navButtons = document.querySelectorAll('.nav-btn, .drawer-link');
+            const pages = document.querySelectorAll('.page-content');
+            
+            function showPage(pageId) {
+                // Hide all pages
+                pages.forEach(page => page.classList.add('hidden'));
+                // Show the requested page
+                document.getElementById(`${pageId}-page`).classList.remove('hidden');
+
+                // Update active state of bottom nav buttons
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    if (btn.getAttribute('data-page') === pageId) {
+                        btn.classList.add('text-teal-600');
+                    } else {
+                        btn.classList.remove('text-teal-600');
+                    }
+                });
+
+                // Close drawer if it's open
+                sideDrawer.classList.remove('open');
+                drawerOverlay.classList.remove('visible');
+
+                // Re-render content for home page if needed
+                if (pageId === 'home') {
+                    renderFeatures();
+                    renderPlaces();
+                    renderPackages();
+                    renderQuickActions();
+                } else if (pageId === 'explore') {
+                    renderExploreCategories();
+                }
+            }
+            
+            navButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const pageId = e.currentTarget.getAttribute('data-page');
+                    if (pageId === 'profile') {
+                        showProfileModal();
+                    } else {
+                        showPage(pageId);
+                    }
+                });
+            });
+
+            // --- Initial Render ---
+            renderCarousel();
+            renderFeatures();
+            renderPlaces();
+            renderPackages();
+            renderQuickActions();
+            showPage('home'); // Ensure home page is shown on load
+        });
+    </script>
+</body>
+</html>
